@@ -1,0 +1,17 @@
+{
+  "name": "rives-simple-frontend",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "node ./build.cjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.1",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "esbuild": "^0.25.1",
+    "expr-eval": "^2.0.2",
+    "viem": "^2.23.15"
+  }
+}

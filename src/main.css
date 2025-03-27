@@ -1,0 +1,12 @@
+.emulator-iframe {
+    text-align: center;
+    border: 2px solid #131415;
+    overflow: hidden;
+    background-color: black;
+    caret-color: transparent;
+}
+.emulator-frame {
+    max-width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
