@@ -4,17 +4,19 @@ import {
   EMULATOR_URL,
   TAPE_ID,
   TAPES_URL,
-  CONTEST_ID,
+  RULE_ID,
   CHAIN_ID,
+  RULES_PARAMS_URL,
 } from "./consts.js";
 import { connectWalletClient, submitGameplay } from "./lib/onchain.js";
-import { generateEntropy, getRule, processGameplay } from "./lib/rives.js";
+import { getRule, generateEntropy, processGameplay } from "./lib/rives.js";
 
 interface EmulatorParams {
   cartridgeId: string;
   simple?: boolean;
   autoplay?: boolean;
   tapeId?: string;
+  ruleId?: string;
   args?: string;
   incardUrl?: string;
   entropy?: string;
@@ -31,6 +33,9 @@ function setEmulatorUrl(params: EmulatorParams) {
     }
     if (params.autoplay) {
       fullSrc += `&autoplay=${params.autoplay}`;
+    }
+    if (params.ruleId) {
+      fullSrc += `&fullTape=${RULES_PARAMS_URL}/${params.ruleId}`;
     }
     if (params.tapeId) {
       fullSrc += `&fullTape=${TAPES_URL}/${params.tapeId}`;
@@ -51,6 +56,7 @@ function setEmulatorUrl(params: EmulatorParams) {
 export function setupPlay() {
   setEmulatorUrl({
     cartridgeId: CARTRIDGE_ID,
+    ruleId: RULE_ID,
     simple: true,
   });
 }
@@ -64,31 +70,81 @@ export function setupReplay() {
 }
 
 export async function setupSubmit() {
-  const msgDiv = document.getElementById("connect-msg");
-  const rule = await getRule(CONTEST_ID);
+  // get rule
+  const rule = await getRule(RULE_ID);
   if (!rule) {
-    console.error("Error loading contest");
+    const msg = "Error loading rule";
+    console.error(msg);
+    const submitMsgDiv = document.getElementById("submit-msg");
+    if (submitMsgDiv) submitMsgDiv.innerHTML = "";
+    const msgDiv = document.getElementById("connect-msg");
+    if (msgDiv) msgDiv.innerHTML = `${msg} (Demo Version)`;
+    setEmulatorUrl({cartridgeId: CARTRIDGE_ID, simple: true});
     return;
   }
-  let client;
-  let userAddress: string;
-  try {
-    client = await connectWalletClient(CHAIN_ID);
-    if (!client) throw new Error("Error connecting wallet");
-    const [address] = await client.requestAddresses();
-    userAddress = address;
-  } catch (error) {
-    const msg = error.message;
-    console.error();
-    if (msgDiv) msgDiv.innerHTML = msg;
+
+  // connected wallet func
+  const getConnectedClient = async () => {
+    const msgDiv = document.getElementById("connect-msg");
+    const submitMsgDiv = document.getElementById("submit-msg");
+    if (submitMsgDiv) submitMsgDiv.innerHTML = "";
+    try {
+      const currClient = await connectWalletClient(CHAIN_ID);
+
+      if (!currClient) throw new Error("Error connecting wallet");
+      const [address] = await currClient.requestAddresses();
+
+      if (msgDiv)
+        msgDiv.innerHTML = `Connected with ` +
+          `${address.substring(0, 6)}...${address.substring(address.length - 4, address.length)} ` +
+          `on ${currClient.chain.name}`;
+
+      return {client:currClient,address:address}
+    } catch (error) {
+      console.log(error);
+      let msg = "Error connecting wallet";
+      if (error instanceof Error) {
+        const indexDot = error.message.indexOf(".");
+        msg =
+          indexDot >= 0 ? error.message.substring(0, indexDot) : error.message;
+      }
+      if (msgDiv) msgDiv.innerHTML = `${msg} (Demo Version)`;
+      setEmulatorUrl({cartridgeId: CARTRIDGE_ID, simple: true, ruleId: rule.id});
+      return {client:null,address:null};
+    }
+  }
+
+  // connection vars
+  let client: any | null;
+  let userAddress: string | null;
+
+  // Set wallet event listeners
+  if (window.ethereum) {
+    window.ethereum.on("chainChanged", async () => {
+      const connetedClient = await getConnectedClient();
+      client = connetedClient.client;
+      userAddress = connetedClient.address;
+    });
+    window.ethereum.on("accountsChanged", async () => {
+      const connetedClient = await getConnectedClient();
+      client = connetedClient.client;
+      userAddress = connetedClient.address;
+    });
+  }
+
+  // get connected wallet
+  const connetedClient = await getConnectedClient();
+  client = connetedClient.client;
+  userAddress = connetedClient.address;
+  if (!client || !userAddress) {
     return;
   }
-  if (msgDiv)
-    msgDiv.innerHTML = `Connected with ${userAddress.substring(0, 6)}...${userAddress.substring(userAddress.length - 4, userAddress.length)} on ${client.chain.name}`;
-  const entropy = generateEntropy(userAddress, rule.id);
+
+  // set submit listener
   window.addEventListener(
     "message",
     (e) => {
+      if (!client || !userAddress || !rule ) return;
       const params = e.data;
       if (params.rivemuOnFinish) {
         const submitMsgDiv = document.getElementById("submit-msg");
@@ -99,17 +155,28 @@ export async function setupSubmit() {
             if (submitMsgDiv) submitMsgDiv.innerHTML = "Gameplay submitted;";
           })
           .catch((error) => {
+            let msg = "Error submitting";
+            if (error instanceof Error) {
+              const indexDot = error.message.indexOf(".");
+              msg =
+                indexDot >= 0 ? error.message.substring(0, indexDot) : error.message;
+            }
             console.log(error);
-            if (submitMsgDiv) submitMsgDiv.innerHTML = error.message;
+            if (submitMsgDiv) submitMsgDiv.innerHTML = msg;
           });
       }
     },
     false,
   );
+
+  // set entropy
+  const entropy = generateEntropy(userAddress, rule.id);
+
+  // config emulator with all parameters
   setEmulatorUrl({
     cartridgeId: CARTRIDGE_ID,
     simple: true,
-    args: rule.args,
+    ruleId: rule.id,
     entropy: entropy,
   });
 }
