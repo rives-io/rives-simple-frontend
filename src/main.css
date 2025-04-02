@@ -10,3 +10,19 @@
     margin-left: auto;
     margin-right: auto;
 }
+
+.leaderboard {
+    text-align: right;
+    border: 1px solid #131415;
+    max-width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+table.leaderboard th {
+    text-align: center;
+    background-color: #CCCCCC;
+}
+table.leaderboard tr:nth-child(even) {
+  background-color: #EEEEEE;
+}

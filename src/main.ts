@@ -9,7 +9,7 @@ import {
   RULES_PARAMS_URL,
 } from "./consts.js";
 import { connectWalletClient, submitGameplay } from "./lib/onchain.js";
-import { getRule, generateEntropy, processGameplay } from "./lib/rives.js";
+import { getRule, generateEntropy, processGameplay, getRuleLeaderboard } from "./lib/rives.js";
 
 interface EmulatorParams {
   cartridgeId: string;
@@ -179,4 +179,48 @@ export async function setupSubmit() {
     ruleId: rule.id,
     entropy: entropy,
   });
+}
+
+export function timeToDateUTCString(time: number) {
+  const date = new Date(Number(time) * 1000);
+  return formatDate(date);
+}
+
+export function formatDate(date: Date) {
+  const options: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+    timeZone: "UTC",
+    timeZoneName: "short",
+  };
+
+  const dateString = date.toLocaleDateString("en-US", options);
+  const [month_day, year, time] = dateString.split(",");
+  const [month, day] = month_day.split(" ");
+  const finalYear = year.substring(1);
+
+  return `${month}/${day}/${finalYear}, ${time}`;
+}
+
+export async function renderLeaderboard() {
+  const table: HTMLTableElement = <HTMLTableElement> document.getElementById("leaderboard");
+  const tapesOut = await getRuleLeaderboard(RULE_ID);
+  if (!tapesOut || tapesOut.total < 1) {
+    const row = table.insertRow();
+    row.innerHTML = "No tapes";
+    return;
+  }
+  let rank = 1;
+  for (const tape of tapesOut.data) {
+    const row = table.insertRow();
+    row.insertCell().innerHTML = `${rank++}`;
+    row.insertCell().innerHTML = tape.user_address;
+    row.insertCell().innerHTML = timeToDateUTCString(tape.timestamp);
+    row.insertCell().innerHTML = `${tape.score ? tape.score : ''}`;
+  }
 }

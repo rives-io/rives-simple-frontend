@@ -47,6 +47,28 @@ export interface RuleInfo {
   deactivated?: boolean;
 }
 
+export interface TapesOutput {
+  data: TapeInfo[];
+  total: number;
+  page: number;
+}
+
+export interface TapeInfo {
+  id: string;
+  cartridge_id: string;
+  rule_id: string;
+  user_address: string;
+  timestamp: number;
+  input_index?: number;
+  score?: number;
+  rank?: number;
+  verified?: boolean;
+  in_card?: string;
+  data?: string;
+  out_card?: string;
+  tapes?: string[];
+}
+
 export interface GameplayData {
   outcard: Uint8Array;
   outhash: string;
@@ -150,4 +172,21 @@ export async function getRule(ruleId: string): Promise<RuleInfo | null> {
     fromHex(outJson["reports"][0].payload, "string"),
   );
   return out["data"][0];
+}
+
+export async function getRuleLeaderboard(
+  ruleId: string,
+): Promise<TapesOutput | null> {
+  const res = await fetch(`${RIVES_NODE_URL}/inspect/core/tapes?rule_id=${ruleId}&order_by=score&order_dir=desc&full=true`);
+  const outJson = await res.json();
+
+  if (outJson["status"] != "Accepted" || outJson["reports"].length == 0) {
+    console.log(`Request error: ${outJson["message"]}`);
+    return null;
+  }
+
+  const out: TapesOutput = JSON.parse(
+    fromHex(outJson["reports"][0].payload, "string"),
+  );
+  return out;
 }
