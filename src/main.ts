@@ -12,7 +12,7 @@ import { connectWalletClient, submitGameplay } from "./lib/onchain.js";
 import { getRule, generateEntropy, processGameplay, getRuleLeaderboard } from "./lib/rives.js";
 
 interface EmulatorParams {
-  cartridgeId: string;
+  cartridgeId?: string;
   simple?: boolean;
   autoplay?: boolean;
   tapeId?: string;
@@ -20,14 +20,18 @@ interface EmulatorParams {
   args?: string;
   incardUrl?: string;
   entropy?: string;
+  extra?: string;
 }
 
-function setEmulatorUrl(params: EmulatorParams) {
+export function setEmulatorUrl(params: EmulatorParams) {
   const emulator = document.getElementById(
     "emulator-iframe",
   ) as HTMLIFrameElement;
   if (emulator) {
-    let fullSrc = `${EMULATOR_URL}/#cartridge=${CARTRIDGES_URL}/${params.cartridgeId}`;
+    let fullSrc = `${EMULATOR_URL}/#light=100`;
+    if (params.cartridgeId) {
+      fullSrc += `&cartridge=${CARTRIDGES_URL}/${params.cartridgeId}`;
+    }
     if (params.simple) {
       fullSrc += `&simple=${params.simple}`;
     }
@@ -41,13 +45,16 @@ function setEmulatorUrl(params: EmulatorParams) {
       fullSrc += `&fullTape=${TAPES_URL}/${params.tapeId}`;
     }
     if (params.args) {
-      fullSrc += `&args=${params.args}`;
+      fullSrc += `&args=${encodeURIComponent(params.args)}`;
     }
     if (params.incardUrl) {
       fullSrc += `&incard=${params.incardUrl}`;
     }
     if (params.entropy) {
       fullSrc += `&entropy=${params.entropy}`;
+    }
+    if (params.extra) {
+      fullSrc += `&${params.extra}`;
     }
     emulator.src = fullSrc;
   }
